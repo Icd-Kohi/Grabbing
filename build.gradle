@@ -1,0 +1,180 @@
+plugins {
+    id 'application'
+    id 'java'
+    id "de.undercouch.download" version "5.1.0"
+    id 'idea'
+    id "io.github.0ffz.github-packages" version "1.2.1" // Plugin for anonymous inclusion of artifacts hosted in github package registry
+}
+
+description = 'Grabbing application'
+
+java {
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+}
+
+ext.jmonkeyengineVersion = '3.7.0-stable'
+
+mainClassName = 'com.grabbing.Grabbing'
+if (!hasProperty('mainClass')) {
+    ext.mainClass = mainClassName
+}
+jar.manifest.attributes('Main-Class': mainClassName)
+
+repositories {
+    maven { url "https://jitpack.io" }
+    mavenCentral()
+    mavenLocal()
+}
+
+application {
+    if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+        applicationDefaultJvmArgs = ['-XstartOnFirstThread'] // this is when using a Mac as a development machine which requires the AppKit main UI thread to be used for GUI applications
+    }
+}
+
+dependencies {
+    // You can read more about how to add dependencies here:
+    //   https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
+
+    implementation 'org.jmonkeyengine:jme3-core:' + jmonkeyengineVersion
+    implementation 'org.jmonkeyengine:jme3-desktop:' + jmonkeyengineVersion
+    runtimeOnly 'org.jmonkeyengine:jme3-jogg:' + jmonkeyengineVersion
+    runtimeOnly 'org.jmonkeyengine:jme3-plugins:' + jmonkeyengineVersion
+
+    implementation 'org.jmonkeyengine:jme3-terrain:' + jmonkeyengineVersion
+    runtimeOnly 'org.jmonkeyengine:jme3-lwjgl3:' + jmonkeyengineVersion
+
+    implementation 'com.simsilica:lemur:1.16.0'
+    implementation 'com.simsilica:lemur-proto:1.13.0'
+    //implementation 'com.rvandoosselaer:blocks:1.7.0' //req. jdk8
+    implementation 'org.apache.logging.log4j:log4j-core:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-api:2.24.3'
+    implementation 'com.github.stephengold:Heart:8.6.0'
+}
+
+distZip {
+    //having a degenerate folder within the dist zip complicates generating the other zips
+    eachFile { file ->
+        String path = file.relativePath
+        file.setPath(path.substring(path.indexOf("/") + 1, path.length()))
+    }
+    includeEmptyDirs(false)
+}
+
+//See https://api.adoptium.net/v3/assets/feature_releases/11/ga?image_type=jre for jre urls
+def windowsJreUrl = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.6%2B10/OpenJDK17U-jre_x64_windows_hotspot_17.0.6_10.zip"
+def linuxJreUrl = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.6%2B10/OpenJDK17U-jre_x64_linux_hotspot_17.0.6_10.tar.gz"
+
+
+tasks.register('downloadWindowsJre', Download) {
+    src windowsJreUrl
+    dest new File(buildDir, '/jres/windowsJre.zip')
+    overwrite false
+}
+
+tasks.register('downloadAndUnzipWindowsJre', Copy) {
+    dependsOn downloadWindowsJre
+    from zipTree(downloadWindowsJre.dest)
+    into "${buildDir}/jres/windowsJre/"
+    includeEmptyDirs(false)
+    filesMatching("**") {
+        it.path = it.path.replaceAll("^[a-zA-Z0-9.+-]*[/\\\\]", "jre/")
+        //rename the top level to something standard so the rest of the script will be easier
+    }
+}
+
+tasks.register('buildWindowsDistribution', Copy) { dependsOn[distZip, downloadAndUnzipWindowsJre] }
+{
+    group 'distribution'
+    from files("${projectDir}/scripts/desktopDeployment/Grabbing.bat"), zipTree(distZip.archiveFile), "${buildDir}/jres/windowsJre"
+    into new File(buildDir, 'distributions/Grabbing-windows')
+    includeEmptyDirs false
+    exclude 'bin/**' //we are adding our own run scripts, exclude the ones coming from distZip
+}
+
+tasks.register('zipWindowsDistribution', Zip) {
+    dependsOn buildWindowsDistribution
+    group 'distribution'
+    archiveFileName = "Grabbing-windows.zip"
+    destinationDirectory = file("$buildDir/distributions")
+    from "$buildDir/distributions/Grabbing-windows"
+}
+
+
+tasks.register('downloadLinuxJre', Download) {
+    src linuxJreUrl
+    dest new File(buildDir, '/jres/linuxJre.tar.gz')
+    overwrite false
+}
+
+tasks.register('downloadAndUnzipLinuxJre', Copy) {
+    dependsOn downloadLinuxJre
+    from tarTree(downloadLinuxJre.dest)
+    into "${buildDir}/jres/linuxJre/"
+    includeEmptyDirs(false)
+    filesMatching("**") {
+        it.path = it.path.replaceAll("^[a-zA-Z0-9.+-]*[/\\\\]", "jre/")
+        //rename the top level to something standard so the rest of the script will be easier
+    }
+}
+
+tasks.register('buildLinuxDistribution', Copy) { dependsOn[distZip, downloadAndUnzipLinuxJre] }
+{
+    group 'distribution'
+    from files("${projectDir}/scripts/desktopDeployment/Grabbing.sh"){
+        fileMode 0755
+    }
+    from zipTree(distZip.archiveFile)
+    from "${buildDir}/jres/linuxJre"
+    into new File(buildDir, 'distributions/Grabbing-linux')
+    includeEmptyDirs false
+    exclude 'bin/**' //we are adding our own run scripts, exclude the ones coming from distZip
+}
+
+tasks.register('zipLinuxDistribution', Zip) {
+    dependsOn buildLinuxDistribution
+    group 'distribution'
+    archiveFileName = "Grabbing-linux.tar.gz"
+    destinationDirectory = file("$buildDir/distributions")
+    from("$buildDir/distributions/Grabbing-linux") {
+        include('**.sh')
+        include('**/java')
+        fileMode 0755
+    }
+    from("$buildDir/distributions/Grabbing-linux") {
+        exclude('**.sh')
+        exclude('**/java')
+    }
+}
+
+tasks.register('buildAllDistributions') {
+    group 'distribution'
+    dependsOn 'zipWindowsDistribution'
+    dependsOn 'zipLinuxDistribution'
+
+    doLast {
+        println("Distributions created in build/distributions folder")
+    }
+}
+
+// cleanup tasks
+clean.dependsOn('cleanDLLs', 'cleanDyLibs', 'cleanLogs', 'cleanSOs')
+tasks.register('cleanDLLs', Delete) {
+    delete fileTree(dir: '.', include: '*.dll')
+}
+tasks.register('cleanDyLibs', Delete) {
+    delete fileTree(dir: '.', include: '*.dylib')
+}
+tasks.register('cleanLogs', Delete) {
+    delete fileTree(dir: '.', include: 'hs_err_pid*.log')
+}
+tasks.register('cleanSOs', Delete) {
+    delete fileTree(dir: '.', include: '*.so')
+}
+
+tasks.register('fund') {
+    doLast {
+        java.awt.Desktop.desktop.browse "https://start.jmonkeyengine.org/#!funding=JME_DESKTOP,JME_TERRAIN,LEMUR,16130%2F1a85df6f-4bb6-4c85-9e77-b5119662ed54,LOG4J2,11511%2Fe534fc1e-5b78-46b7-a831-d5d40cbd9dcd".toURI()
+    }
+}
