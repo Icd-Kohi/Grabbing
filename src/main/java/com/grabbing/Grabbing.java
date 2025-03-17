@@ -14,12 +14,9 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 
-
-
 /**
  * This is the Main Class of your Game. It should boot up your game and do initial initialisation
  * Move your Logic into AppStates or Controls or other java classes
-
  * TODO:
  * ADD CHARACTER ASSET;
  * ADD ITEM ASSET;
@@ -31,6 +28,7 @@ import com.jme3.scene.shape.Box;
  * REFACTOR TO INDIVIDUAL CLASSES;
  * REMOVE MAGIC NUMBERS;
  */
+
 public class Grabbing extends SimpleApplication {
     private final int worldHeigth = 30;
     private final int worldWidth = 30;
