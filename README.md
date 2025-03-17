@@ -1,2 +1,2 @@
-# Grabbing & Drop Item Mini-Game
-For you to practice Grabbing Items on the floor.
+# Drag & Drop Item Mini-Game
+For you to practice dragging items on the floor/bag.
