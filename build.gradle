@@ -45,9 +45,10 @@ dependencies {
     implementation 'org.jmonkeyengine:jme3-terrain:' + jmonkeyengineVersion
     runtimeOnly 'org.jmonkeyengine:jme3-lwjgl3:' + jmonkeyengineVersion
 
+    implementation 'com.github.stephengold:jbullet:1.0.2'
     implementation 'com.simsilica:lemur:1.16.0'
     implementation 'com.simsilica:lemur-proto:1.13.0'
-    //implementation 'com.rvandoosselaer:blocks:1.7.0' //req. jdk8
+
     implementation 'org.apache.logging.log4j:log4j-core:2.24.3'
     implementation 'org.apache.logging.log4j:log4j-api:2.24.3'
     implementation 'com.github.stephengold:Heart:8.6.0'
