@@ -59,7 +59,7 @@ public class LevelState extends AbstractAppState {
     //PLAYER
     private Geometry player;
     // WALK DIRECTIONS
-    private final float moveSpeed = 5f;
+    private final float moveSpeed = 5.0f;
     // DIRECTIONS
     private boolean left = false, right = false, up = false, down = false;
 
@@ -72,7 +72,6 @@ public class LevelState extends AbstractAppState {
 
         camera = app.getCamera();
     }
-
     @Override
     public void initialize(AppStateManager stateManager, Application app){
         super.initialize(stateManager, app);
@@ -82,8 +81,15 @@ public class LevelState extends AbstractAppState {
         mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         mat.setColor("Color", ColorRGBA.fromRGBA255(GREEN[0],GREEN[1],GREEN[2],GREEN[3]));
 
+        Box testing = new Box(0.5f,0.5f,0.5f);
+        Geometry box = new Geometry("box",testing);
+        box.setMaterial(mat);
+        box.setLocalTranslation(5.0f, 3.0f, 5.0f);
+        pivot.attachChild(box);
+
         highlightMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         highlightMat.setColor("Color", ColorRGBA.Gray);
+
         worldSize(worldWidth, worldHeight);
 
         // PLAYER
@@ -108,7 +114,6 @@ public class LevelState extends AbstractAppState {
         flyByCamera.setEnabled(false);
 
     }
-
     private final ActionListener actionListener = new ActionListener() {
         @Override
         public void onAction(String name, boolean keyPressed, float tpf) {
@@ -121,7 +126,6 @@ public class LevelState extends AbstractAppState {
             }
         }
     };
-
     private void createPlayer(){
         // PLACEHOLDER ASSET
         Box player1 = new Box(0.5f, 0.5f, 0.5f);
@@ -133,7 +137,6 @@ public class LevelState extends AbstractAppState {
         player.setLocalTranslation(new Vector3f(worldWidth/2f, 1, worldHeight /2f));
         rootNode.attachChild(player);
     }
-
     private void worldSize(int width, int height) {
         Box box = new Box(0.5f, 0.5f, 0.5f);
         // BLOCKS
@@ -146,7 +149,6 @@ public class LevelState extends AbstractAppState {
             }
         }
     }
-
     private void cameraPosition(){
         Vector3f playerPos = player.getLocalTranslation();
         Vector3f cameraPos = playerPos.add(cameraOffset);
@@ -159,13 +161,14 @@ public class LevelState extends AbstractAppState {
         Vector2f cursorPos = inputManager.getCursorPosition();
         Vector3f origin = camera.getWorldCoordinates(cursorPos, 0f);
         Vector3f direction = camera.getWorldCoordinates(cursorPos, 1f).subtractLocal(origin).normalizeLocal();
-
         Ray ray = new Ray(origin, direction);
         pivot.collideWith(ray, results);
+        Node highlight = new Node("highlight");
+        pivot.attachChild(highlight);
 
         if (results.size() > 0) {
             Geometry hover = results.getClosestCollision().getGeometry();
-
+            highlight.attachChild(hover);
             if (hover != currentHighlight) {
                 // REMOVE
                 if (currentHighlight != null) {
@@ -175,12 +178,11 @@ public class LevelState extends AbstractAppState {
                 hover.setMaterial(highlightMat);
                 currentHighlight = hover;
             }
-        } else {
-            if (currentHighlight != null) {
+        } else if (currentHighlight != null) {
                 currentHighlight.setMaterial(mat);
                 currentHighlight = null;
-            }
         }
+
     }
     @Override
     public void update(float tpf){
@@ -197,7 +199,7 @@ public class LevelState extends AbstractAppState {
         position.y = 1;
         player.setLocalTranslation(position);
         cameraPosition();
-
+        
         // CURSOR HIGHLIGHTING
         hoverHighlight();
     }
@@ -206,6 +208,16 @@ public class LevelState extends AbstractAppState {
         rootNode.detachChild(pivot);
         super.cleanup();
     }
+    public void cleanupNode(Node node){
+        rootNode.detachChild(node);
+    }
 
+    //INVENTORY:
+    //rootNode --> INVENTORY
+    //        |--> pivot --> ITEM
+    //        | ...
+    //KEEP ITS STATE (ITEMS) WHEN OPENED/CLOSED
+    //
+    //GET CURSOR POSITION, IF SAME POS AS ITEM,
 
 }
