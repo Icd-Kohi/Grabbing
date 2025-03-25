@@ -2,6 +2,7 @@ package com.grabbing;
 
 import com.grabbing.state.LevelState;
 import com.jme3.app.SimpleApplication;
+
 import com.jme3.renderer.RenderManager;
 import com.jme3.system.AppSettings;
 
@@ -21,13 +22,14 @@ import com.jme3.system.AppSettings;
  */
 
 public class Grabbing extends SimpleApplication {
-
+    private static final int resolutionWidth = 1600;
+    private static final int resolutionHeight = 900;
     public Grabbing() {
 
     }
     public static void main(String[] args) {
         AppSettings settings = new AppSettings(true);
-        settings.setResolution(1600,900);
+        settings.setResolution(resolutionWidth,resolutionHeight);
         settings.setTitle("Grabbing");
         Grabbing app = new Grabbing();
         app.setSettings(settings);
@@ -43,12 +45,13 @@ public class Grabbing extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
         //this method will be called every game tick and can be used to make updates
-
     }
+
 
     @Override
     public void simpleRender(RenderManager rm) {
         //add render code here (if any)
 
     }
+
 }

@@ -6,12 +6,13 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.AppStateManager;
 import com.jme3.asset.AssetManager;
 import com.jme3.collision.CollisionResults;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.input.FlyByCamera;
 import com.jme3.input.InputManager;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Ray;
@@ -39,6 +40,8 @@ import com.jme3.scene.shape.Box;
 
 public class LevelState extends AbstractAppState {
     private final Node rootNode;
+    private final Node guiNode;
+    private final BitmapFont guiFont;
     private final AssetManager assetManager;
     private final InputManager inputManager;
     // CAM
@@ -49,32 +52,42 @@ public class LevelState extends AbstractAppState {
     private final int worldHeight = 30;
     private final int worldWidth = 30;
     // MATERIAL
-    Material highlightMat;
-    Material mat;
-    Material user;
+    private Material highlightMat;
+    private Material mat;
+    private Material user;
     // SPATIAL
     private Geometry currentHighlight;
     private final int[] GREEN = {152,188,111,80}; //GREEN
     private final Node pivot = new Node("pivot");
     //PLAYER
     private Geometry player;
+    private Vector3f playerPosition;
+    private BitmapText positionText;
+
     // WALK DIRECTIONS
     private final float moveSpeed = 5.0f;
     // DIRECTIONS
     private boolean left = false, right = false, up = false, down = false;
+    // RESOLUTION
+    private static final int resolutionWidth = 1600;
+    private static final int resolutionHeight = 900;
+    // INPUT STATE
+    private int pressingP = 0;
 
     public LevelState(SimpleApplication app) {
         rootNode = app.getRootNode();
+        guiNode = app.getGuiNode();
+        guiFont = app.getAssetManager().loadFont("Interface/Fonts/Default.fnt");
+
         assetManager = app.getAssetManager();
         inputManager = app.getInputManager();
-
         flyByCamera = app.getFlyByCamera();
-
         camera = app.getCamera();
     }
     @Override
     public void initialize(AppStateManager stateManager, Application app){
         super.initialize(stateManager, app);
+
         rootNode.attachChild(pivot);
 
         // MATERIALS
@@ -83,7 +96,9 @@ public class LevelState extends AbstractAppState {
 
         Box testing = new Box(0.5f,0.5f,0.5f);
         Geometry box = new Geometry("box",testing);
-        box.setMaterial(mat);
+        Material testt = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        testt.setColor("Color", ColorRGBA.Red);
+        box.setMaterial(testt);
         box.setLocalTranslation(5.0f, 3.0f, 5.0f);
         pivot.attachChild(box);
 
@@ -101,8 +116,9 @@ public class LevelState extends AbstractAppState {
         inputManager.addMapping("Down", new KeyTrigger(KeyInput.KEY_S));
         inputManager.addMapping("Left", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("Right", new KeyTrigger(KeyInput.KEY_D));
+        inputManager.addMapping("Position", new KeyTrigger(KeyInput.KEY_P));
 
-        inputManager.addListener(actionListener, "Reset", "Up", "Down", "Left", "Right");
+        inputManager.addListener(actionListener, "Reset", "Up", "Down", "Left", "Right", "Position");
 
         // SUN
 //        DirectionalLight sun = new DirectionalLight();
@@ -112,17 +128,34 @@ public class LevelState extends AbstractAppState {
         //
 
         flyByCamera.setEnabled(false);
-
     }
     private final ActionListener actionListener = new ActionListener() {
         @Override
         public void onAction(String name, boolean keyPressed, float tpf) {
             switch (name) {
-                case "Reset" -> player.setLocalTranslation(worldWidth/2f, 1, worldHeight /2f);
-                case "Up" -> up = keyPressed;
-                case "Down" -> down = keyPressed;
-                case "Left" -> left = keyPressed;
-                case "Right" -> right = keyPressed;
+                case "Reset":
+                    player.setLocalTranslation(worldWidth / 2f, 1, worldHeight / 2f);
+                    break;
+                case "Up":
+                    up = keyPressed;
+                    break;
+                case "Down":
+                    down = keyPressed;
+                    break;
+                case "Left":
+                    left = keyPressed;
+                    break;
+                case "Right":
+                    right = keyPressed;
+                    break;
+                case "Position":
+                    pressingP = keyPressed ? 1 : 0;
+                    if(pressingP == 1){
+                        initPositionText();
+                    }else if(guiNode != null){
+                        guiNode.detachAllChildren();
+                    }
+                    break;
             }
         }
     };
@@ -157,18 +190,16 @@ public class LevelState extends AbstractAppState {
 
     }
     private void hoverHighlight(){
-        CollisionResults results = new CollisionResults();
-        Vector2f cursorPos = inputManager.getCursorPosition();
-        Vector3f origin = camera.getWorldCoordinates(cursorPos, 0f);
-        Vector3f direction = camera.getWorldCoordinates(cursorPos, 1f).subtractLocal(origin).normalizeLocal();
+        CollisionResults collisionResults = new CollisionResults();
+        Vector2f cursorPosition = inputManager.getCursorPosition();
+        Vector3f origin = camera.getWorldCoordinates(cursorPosition, 0f);
+        Vector3f direction = camera.getWorldCoordinates(cursorPosition, 1f).subtractLocal(origin).normalizeLocal();
         Ray ray = new Ray(origin, direction);
-        pivot.collideWith(ray, results);
-        Node highlight = new Node("highlight");
-        pivot.attachChild(highlight);
+        pivot.collideWith(ray, collisionResults);
 
-        if (results.size() > 0) {
-            Geometry hover = results.getClosestCollision().getGeometry();
-            highlight.attachChild(hover);
+        if (collisionResults.size() > 0) {
+            Geometry hover = collisionResults.getClosestCollision().getGeometry();
+            pivot.attachChild(hover);
             if (hover != currentHighlight) {
                 // REMOVE
                 if (currentHighlight != null) {
@@ -178,46 +209,61 @@ public class LevelState extends AbstractAppState {
                 hover.setMaterial(highlightMat);
                 currentHighlight = hover;
             }
-        } else if (currentHighlight != null) {
-                currentHighlight.setMaterial(mat);
-                currentHighlight = null;
         }
 
     }
     @Override
     public void update(float tpf){
         // PLAYER POS
-        Vector3f position = player.getLocalTranslation();
+        playerPosition = player.getLocalTranslation();
 
-        if (left) position.x -= moveSpeed * tpf;
-        if (right) position.x += moveSpeed * tpf;
-        if (up)  position.z -= moveSpeed * tpf;
-        if (down) position.z += moveSpeed * tpf;
+        if (left) playerPosition.x -= moveSpeed * tpf;
+        if (right) playerPosition.x += moveSpeed * tpf;
+        if (up)  playerPosition.z -= moveSpeed * tpf;
+        if (down) playerPosition.z += moveSpeed * tpf;
 
-        position.x = Math.max(0.5f, Math.min(worldWidth - 0.5f, position.x));
-        position.z = Math.max(0.5f, Math.min(worldHeight - 0.5f, position.z));
-        position.y = 1;
-        player.setLocalTranslation(position);
+        playerPosition.x = Math.max(0.5f, Math.min(worldWidth - 0.5f, playerPosition.x));
+        playerPosition.z = Math.max(0.5f, Math.min(worldHeight - 0.5f, playerPosition.z));
+        playerPosition.y = 1;
+
+        player.setLocalTranslation(playerPosition);
         cameraPosition();
-        
+
         // CURSOR HIGHLIGHTING
         hoverHighlight();
+        updatePositionText();
     }
     @Override
     public void cleanup(){
         rootNode.detachChild(pivot);
         super.cleanup();
     }
-    public void cleanupNode(Node node){
-        rootNode.detachChild(node);
+    public void initPositionText(){
+        if(guiNode != null){
+            positionText = new BitmapText(guiFont);
+            positionText.setSize(guiFont.getCharSet().getRenderedSize());
+            positionText.setColor(ColorRGBA.White);
+            positionText.setLocalTranslation(10, resolutionHeight/2f, 0); // Top-left corner
+            guiNode.attachChild(positionText);
+        }
+
+    }
+    public void updatePositionText(){
+        if(pressingP == 1){
+            positionText.setText(
+                    String.format("Position:\nX: %.1f\nY: %.1f", playerPosition.x, playerPosition.z)
+            );
+        }
+
     }
 
+    //TODO:
     //INVENTORY:
     //rootNode --> INVENTORY
     //        |--> pivot --> ITEM
+    //        |         |--> HIGHLIGHT
     //        | ...
     //KEEP ITS STATE (ITEMS) WHEN OPENED/CLOSED
     //
     //GET CURSOR POSITION, IF SAME POS AS ITEM,
-
 }
