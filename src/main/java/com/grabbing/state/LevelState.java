@@ -1,5 +1,6 @@
 package com.grabbing.state;
 
+import com.grabbing.Grabbing;
 import com.jme3.app.Application;
 import com.jme3.app.state.AbstractAppState;
 import com.jme3.app.SimpleApplication;
@@ -23,56 +24,68 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 
+import java.awt.Component;
+
+
 /**
  * This is the Main Class of your Game. It should boot up your game and do initial initialisation
  * Move your Logic into AppStates or Controls or other java classes
  * TODO:
- * ADD CHARACTER ASSET; DONE
- * ADD ITEM ASSET;
+ * ADD CHARACTER ASSET; OK
+ * ADD ITEM ASSET; OK
  * ADD INVENTORY;
- * MOVE CHARACTER; DONE
- * DRAG ITEM ON THE FLOOR;
- * DRAG ITEM INTO/OUT INVENTORY; (ITEM -> INVENTORY SAME NODES IN ROOT)
+ * MOVE CHARACTER; OK
+ * DRAG ITEM ON THE FLOOR; OK
+ * DRAG ITEM INTO/OUT INVENTORY;
  * POLISH DRAG;
  * REFACTOR TO INDIVIDUAL CLASSES;
  * REMOVE MAGIC NUMBERS;
  */
 
 public class LevelState extends AbstractAppState {
-    private final Node rootNode;
-    private final Node guiNode;
-    private final BitmapFont guiFont;
-    private final AssetManager assetManager;
+    // NODES
+    public final Node rootNode;
+    public final Node guiNode;
+    final Node pivot = new Node("pivot");
+    Node itemNode = new Node("item");
+    // INPUT
+    final AssetManager assetManager;
     private final InputManager inputManager;
     // CAM
-    private final Vector3f cameraOffset = new Vector3f(0,15,10);
+    public final Vector3f cameraOffset = new Vector3f(0,18,5);
     private final FlyByCamera flyByCamera;
-    private final Camera camera;
+    public final Camera camera;
     // WORLD SIZE
-    private final int worldHeight = 30;
-    private final int worldWidth = 30;
+    final int worldHeight = 30;
+    final int worldWidth = 30;
     // MATERIAL
+    private final BitmapFont guiFont;
+    public Component settings;
     private Material highlightMat;
     private Material mat;
     private Material user;
     // SPATIAL
     private Geometry currentHighlight;
     private final int[] GREEN = {152,188,111,80}; //GREEN
-    private final Node pivot = new Node("pivot");
     //PLAYER
-    private Geometry player;
-    private Vector3f playerPosition;
+    public Geometry player;
+    public Vector3f playerPosition;
     private BitmapText positionText;
-
     // WALK DIRECTIONS
     private final float moveSpeed = 5.0f;
     // DIRECTIONS
     private boolean left = false, right = false, up = false, down = false;
     // RESOLUTION
-    private static final int resolutionWidth = 1600;
-    private static final int resolutionHeight = 900;
+    private static final int resolutionWidth = Grabbing.resolutionWidth;
+    private static final int resolutionHeight = Grabbing.resolutionHeight;
     // INPUT STATE
     private int pressingP = 0;
+    public boolean isDragging = false;
+
+    // ITEM
+    private Item item;
+    // INVENTORY
+    private Inventory inventory;
 
     public LevelState(SimpleApplication app) {
         rootNode = app.getRootNode();
@@ -87,20 +100,13 @@ public class LevelState extends AbstractAppState {
     @Override
     public void initialize(AppStateManager stateManager, Application app){
         super.initialize(stateManager, app);
-
+        item = new Item((SimpleApplication) app,this);
+        itemNode = item.itemNode;
         rootNode.attachChild(pivot);
-
+        rootNode.attachChild(itemNode);
         // MATERIALS
         mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         mat.setColor("Color", ColorRGBA.fromRGBA255(GREEN[0],GREEN[1],GREEN[2],GREEN[3]));
-
-        Box testing = new Box(0.5f,0.5f,0.5f);
-        Geometry box = new Geometry("box",testing);
-        Material testt = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        testt.setColor("Color", ColorRGBA.Red);
-        box.setMaterial(testt);
-        box.setLocalTranslation(5.0f, 3.0f, 5.0f);
-        pivot.attachChild(box);
 
         highlightMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         highlightMat.setColor("Color", ColorRGBA.Gray);
@@ -119,6 +125,9 @@ public class LevelState extends AbstractAppState {
         inputManager.addMapping("Position", new KeyTrigger(KeyInput.KEY_P));
 
         inputManager.addListener(actionListener, "Reset", "Up", "Down", "Left", "Right", "Position");
+        // GRAB INPUT MAP/LISTENER
+        item.initInput();
+        item.spawnItem();
 
         // SUN
 //        DirectionalLight sun = new DirectionalLight();
@@ -126,10 +135,11 @@ public class LevelState extends AbstractAppState {
 //        pivot.addLight(sun);
 
         //
-
+        // ITEMS
         flyByCamera.setEnabled(false);
+
     }
-    private final ActionListener actionListener = new ActionListener() {
+    public final ActionListener actionListener = new ActionListener() {
         @Override
         public void onAction(String name, boolean keyPressed, float tpf) {
             switch (name) {
@@ -159,6 +169,7 @@ public class LevelState extends AbstractAppState {
             }
         }
     };
+
     private void createPlayer(){
         // PLACEHOLDER ASSET
         Box player1 = new Box(0.5f, 0.5f, 0.5f);
@@ -187,27 +198,27 @@ public class LevelState extends AbstractAppState {
         Vector3f cameraPos = playerPos.add(cameraOffset);
         camera.setLocation(cameraPos);
         camera.lookAt(playerPos, Vector3f.UNIT_Y);
-
     }
     private void hoverHighlight(){
         CollisionResults collisionResults = new CollisionResults();
+
         Vector2f cursorPosition = inputManager.getCursorPosition();
         Vector3f origin = camera.getWorldCoordinates(cursorPosition, 0f);
         Vector3f direction = camera.getWorldCoordinates(cursorPosition, 1f).subtractLocal(origin).normalizeLocal();
-        Ray ray = new Ray(origin, direction);
-        pivot.collideWith(ray, collisionResults);
+        Ray rayCasting = new Ray(origin, direction);
+        pivot.collideWith(rayCasting, collisionResults);
 
         if (collisionResults.size() > 0) {
-            Geometry hover = collisionResults.getClosestCollision().getGeometry();
-            pivot.attachChild(hover);
-            if (hover != currentHighlight) {
+            Geometry hoverClosest = collisionResults.getClosestCollision().getGeometry();
+            pivot.attachChild(hoverClosest);
+            if (hoverClosest != currentHighlight) {
                 // REMOVE
                 if (currentHighlight != null) {
                     currentHighlight.setMaterial(mat);
                 }
                 // APPLY
-                hover.setMaterial(highlightMat);
-                currentHighlight = hover;
+                hoverClosest.setMaterial(highlightMat);
+                currentHighlight = hoverClosest;
             }
         }
 
@@ -231,8 +242,10 @@ public class LevelState extends AbstractAppState {
 
         // CURSOR HIGHLIGHTING
         hoverHighlight();
+        item.highlightHoveredItems();
         updatePositionText();
     }
+
     @Override
     public void cleanup(){
         rootNode.detachChild(pivot);
@@ -246,12 +259,11 @@ public class LevelState extends AbstractAppState {
             positionText.setLocalTranslation(10, resolutionHeight/2f, 0); // Top-left corner
             guiNode.attachChild(positionText);
         }
-
     }
     public void updatePositionText(){
         if(pressingP == 1){
             positionText.setText(
-                    String.format("Position:\nX: %.1f\nY: %.1f", playerPosition.x, playerPosition.z)
+                    String.format("Position:\nX: %.1f\nZ: %.1f", playerPosition.x, playerPosition.z)
             );
         }
 

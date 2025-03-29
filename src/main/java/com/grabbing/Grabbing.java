@@ -11,10 +11,10 @@ import com.jme3.system.AppSettings;
  * Move your Logic into AppStates or Controls or other java classes
  * TODO:
  * ADD CHARACTER ASSET; OK
- * ADD ITEM ASSET;
+ * ADD ITEM ASSET; OK
  * ADD INVENTORY;
  * MOVE CHARACTER; OK
- * DRAG ITEM ON THE FLOOR;
+ * DRAG ITEM ON THE FLOOR; OK
  * DRAG ITEM INTO/OUT INVENTORY;
  * POLISH DRAG;
  * REFACTOR TO INDIVIDUAL CLASSES;
@@ -22,8 +22,8 @@ import com.jme3.system.AppSettings;
  */
 
 public class Grabbing extends SimpleApplication {
-    private static final int resolutionWidth = 1600;
-    private static final int resolutionHeight = 900;
+    public static final int resolutionWidth = 1600;
+    public static final int resolutionHeight = 900;
     public Grabbing() {
 
     }
@@ -39,14 +39,12 @@ public class Grabbing extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         stateManager.attach(new LevelState(this));
-
     }
 
     @Override
     public void simpleUpdate(float tpf) {
         //this method will be called every game tick and can be used to make updates
     }
-
 
     @Override
     public void simpleRender(RenderManager rm) {
