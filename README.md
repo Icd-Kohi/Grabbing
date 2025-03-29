@@ -6,10 +6,15 @@ For you to practice dragging items on the floor/bag.
 ### In-game footage:
 
 - "Player is white, item is yellow"
+
 ![](/images/readme-img1.png "Player is white, item is yellow")
-- "Player can click the item"
+
+- "Item red indicates that Player can interact with it"
+
 ![](/images/readme-img2.png "Player can click the item")
+
 - "Player throw the item"
+
 ![](/images/readme-img3.png "Player throw the item")
 
 ### TODOs:
