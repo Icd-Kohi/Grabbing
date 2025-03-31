@@ -1,7 +1,6 @@
 # Drag & Drop Item Mini-Game
 For you to practice dragging items on the floor/bag. 
 
-*(I'd rather do this project it in Godot)*
 
 ### In-game footage:
 
@@ -24,3 +23,5 @@ For you to practice dragging items on the floor/bag.
 4. *Drag animation*
 5. *Implement visual grid on the floor*
 6. *Proper Assets to Player/Item*
+
+   *(I'd rather do this project it in Godot)*
